@@ -224,7 +224,8 @@ if uploaded_file:
 
                 def mark_best(group):
                     group['Optimum'] = False
-                    best_idx = group.sort_values(by=['Risk Oranı (%)', 'Net Tasarruf'], ascending=[True, False]).index[0]
+                    positive_savings=group[group['Net Tasarruf'] > 0]
+                    best_idx = positive_savings.sort_values(by=['Risk Oranı (%)' , 'Net Tasarruf'], ascending= [True,False]).index[0]
                     group.at[best_idx, 'Optimum'] = True
                     return group
 
@@ -244,6 +245,8 @@ if uploaded_file:
                 filter_base = st.multiselect("Base", sorted(g_df['Base'].unique()))
             with f3:
                 filter_pos = st.multiselect("Pozisyon", sorted(g_df['Pozisyon'].unique()))
+            with f3:
+                filter_tur = st.multiselect("Nöbet Türü", sorted(g_df['Nöbet Türü'].unique()))
             with f4:
                 only_optimum = st.checkbox("Sadece Optimum Önerileri Göster", value=False)
 
@@ -255,6 +258,8 @@ if uploaded_file:
                 filtered_df = filtered_df[filtered_df['Base'].isin(filter_base)]
             if filter_pos:
                 filtered_df = filtered_df[filtered_df['Pozisyon'].isin(filter_pos)]
+            if filter_tur:
+                filtered_df = filtered_df[filtered_df['Nöbet Türü'].isin(filter_tur)]
             if only_optimum:
                 filtered_df = filtered_df[filtered_df['Optimum'] == True]
 
