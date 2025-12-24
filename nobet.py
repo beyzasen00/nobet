@@ -225,8 +225,10 @@ if uploaded_file:
                 def mark_best(group):
                     group['Optimum'] = False
                     positive_savings=group[group['Net Tasarruf'] > 0]
-                    best_idx = positive_savings.sort_values(by=['Risk Oranı (%)' , 'Net Tasarruf'], ascending= [True,False]).index[0]
-                    group.at[best_idx, 'Optimum'] = True
+                    if not positive_savings.empty:
+                    
+                        best_idx = positive_savings.sort_values(by=['Risk Oranı (%)' , 'Net Tasarruf'], ascending= [True,False]).index[0]
+                        group.at[best_idx, 'Optimum'] = True
                     return group
 
                 st.session_state.strateji_sonuc = res_df.groupby(['Analiz Seviyesi', 'Zaman Dilimi', 'Base', 'Filo', 'Pozisyon', 'Tür'], group_keys=False).apply(mark_best)
