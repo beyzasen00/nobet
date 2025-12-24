@@ -142,7 +142,7 @@ if uploaded_file:
        st.write("Tüm kombinasyonlar için optimum nöbet sayılarını belirleyin.")
        if 'strateji_sonuc' not in st.session_state:
            st.session_state.strateji_sonuc = None
-       if st.button("Tüm Şirket İçin Stratejik Analizi Başlat"):
+       if st.button("Tüm Kombinasyonlar İçin Stratejik Analizi Başlat"):
            with st.spinner("Veriler işleniyor..."):
                global_exec_summary = []
                test_profiles = [70,75,80, 85, 90, 95, 100]
@@ -222,3 +222,4 @@ if uploaded_file:
            st.download_button(label="📥 Yönetici Raporunu İndir", data=output_g.getvalue(), file_name="Sirket_Strateji_Raporu.xlsx")
 else:
    st.info("Lütfen veri yükleyin.")
+
