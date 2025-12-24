@@ -89,7 +89,7 @@ if uploaded_file:
             avg_p, avg_k, avg_o, avg_s = total_p_sum/num_days, total_k_sum/num_days, total_o_sum/num_days, total_fark_sum/num_days
             risk_ratio = ((daily_detail['Riskli_mi?'] == 'RİSK').sum() / len(daily_detail) * 100) if len(daily_detail) > 0 else 0
 
-            st.title(f"📊 {sel_base} | {sel_filo} | {sel_poz} Analiz Paneli")
+            st.title(f"📊 {sel_base} | {sel_filo} | {sel_poz} | {sel_tur} Analiz Paneli")
             
             k1, k2, k3, k4, k5 = st.columns(5)
             k1.markdown(f'<div class="kpi-card"><div class="kpi-title">Mevcut Ort. Plan</div><div class="kpi-value">{avg_p:.1f}</div></div>', unsafe_allow_html=True)
@@ -170,7 +170,7 @@ if uploaded_file:
                 st.dataframe(detay_final.style.apply(lambda x: ['font-weight: bold; background-color: #f0f2f6' if x.name == len(detay_final)-1 else '' for _ in x], axis=1).format(precision=0), use_container_width=True, hide_index=True)
 
             # 3. UYARI NOTU
-            st.warning("⚠️ **ÖNEMLİ NOT:** Yukarıdaki önerilen adetlerin oluşturacağı operasyonel risk oranını ve çakışma detaylarını **Operasyonel Analiz** sayfasındaki KPI kartlarından ve risk tablosundan kontrol edebilirsiniz.")
+            st.warning("⚠️ **ÖNEMLİ NOT:** Yukarıdaki önerilen adetlerin oluşturacağı operasyonel risk oranını **Operasyonel Analiz** sayfasındaki KPI kartlarından ve risk tablosundan kontrol edebilirsiniz.")
 
     with tab_strateji:
         st.title("🚀 Global Senaryo ve Strateji Motoru")
