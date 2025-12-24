@@ -248,7 +248,7 @@ if uploaded_file:
             with f3:
                 filter_pos = st.multiselect("Pozisyon", sorted(g_df['Pozisyon'].unique()))
             with f3:
-                filter_tur = st.multiselect("Nöbet Türü", sorted(g_df['Nöbet Türü'].unique()))
+                filter_tur = st.multiselect("Nöbet Türü", sorted(g_df['Tür'].unique()))
             with f4:
                 only_optimum = st.checkbox("Sadece Optimum Önerileri Göster", value=False)
 
@@ -261,7 +261,7 @@ if uploaded_file:
             if filter_pos:
                 filtered_df = filtered_df[filtered_df['Pozisyon'].isin(filter_pos)]
             if filter_tur:
-                filtered_df = filtered_df[filtered_df['Nöbet Türü'].isin(filter_tur)]
+                filtered_df = filtered_df[filtered_df['Tür'].isin(filter_tur)]
             if only_optimum:
                 filtered_df = filtered_df[filtered_df['Optimum'] == True]
 
