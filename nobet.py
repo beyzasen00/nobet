@@ -28,7 +28,7 @@ if uploaded_file:
    df['Ay_TR'] = df['Nobet Baslangic Tarihi'].dt.month_name().map(ay_map)
    df['Gitti_Mi'] = df['Nobetten Goreve Gitti mi?'].apply(lambda x: 1 if str(x).strip().upper() == 'Y' else 0)
    # Sezon Tanımı
-   sezon_map = {'Kış': ['Aralık', 'Ocak', 'Şubat'], 'Bahar': ['Mart', 'Nisan', 'Mayıs'], 'Yaz': ['Haziran', 'Temmuz', 'Ağustos'], 'Güz': ['Eylül', 'Ekim', 'Kasım']}
+   sezon_map = {'Kış': ['Kasım','Aralık', 'Ocak', 'Şubat', 'Mart'], 'Yaz1': ['Haziran', 'Temmuz', 'Ağustos', 'Eylül'], 'Yaz2': ['Nisan', 'Mayıs', 'Ekim']}
    def get_sezon(ay):
        for s, aylar in sezon_map.items():
            if ay in aylar: return s
@@ -212,7 +212,8 @@ if uploaded_file:
 <b>💡 Öneri Nasıl Hesaplanıyor?</b><br>
                1. Veriler saatlik bazda gruplanır ve seçilen <b>Güven Aralığına</b> göre istatistiksel üst sınır (Percentile) belirlenir.<br>
                2. <b>Yeşil satırlar;</b> Risk oranı %5'ten küçük ve Net Tasarrufu 0'dan büyük olan en verimli noktayı temsil eder.<br>
-               3. Tabloyu yukarıdaki kutulardan filtreleyerek "Sadece Sezonluk" veya "Sadece Kaptan" gibi spesifik analizler yapabilirsiniz.
+               3. Tabloyu yukarıdaki kutulardan filtreleyerek "Sadece Sezonluk" veya "Sadece Kaptan" gibi spesifik analizler yapabilirsiniz.<br>
+              <b> Yaz1 <b>:Haziran,Temmuz,Ağustos,Eylül - <b> Yaz2 <b>:Nisan, Mayıs, Ekim - <b>Kış<b>:Kasım, Aralık, Ocak, Şubat, Mart
 </div>
            """, unsafe_allow_html=True)
            output_g = BytesIO()
