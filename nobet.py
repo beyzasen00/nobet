@@ -169,7 +169,7 @@ if uploaded_file:
                            global_exec_summary.append({
                                'Analiz Seviyesi': label, 'Zaman Dilimi': z_adi, 'Base': row['Base'], 'Filo': row['Baz Filo'],
                                'Pozisyon': row['Pozisyon'], 'Tür': row['Nöbet Türü'], 'Güven Aralığı (%)': prof,
-                               'Mevcut Plan (Ort)': round(c_avg_p, 1), 'Önerilen Nöbetçi Adedi': round(float(c_avg_o), 1),
+                               'Mevcut Plan (Ort)': round(c_avg_p, 1), 'Önerilen Nöbetçi Sayısı': round(float(c_avg_o), 1),
                                'Net Tasarruf': round(c_avg_p - c_avg_o, 1), 'Risk Oranı (%)': round(c_r_ratio, 1)
                            })
                res_df = pd.DataFrame(global_exec_summary)
@@ -222,4 +222,5 @@ if uploaded_file:
            st.download_button(label="📥 Yönetici Raporunu İndir", data=output_g.getvalue(), file_name="Sirket_Strateji_Raporu.xlsx")
 else:
    st.info("Lütfen veri yükleyin.")
+
 
