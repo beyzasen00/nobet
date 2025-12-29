@@ -6,10 +6,10 @@ st.set_page_config(layout="wide", page_title="Nöbet Risk Analiz")
 # --- CSS ---
 st.markdown("""
 <style>
-   .kpi-card { background-color: #f8f9fa; padding: 20px; border-radius: 15px; border-left: 6px solid #a3b18a; text-align: center; margin-bottom: 15px; }
-   .kpi-title { font-size: 11px; color: #6c757d; font-weight: bold; text-transform: uppercase; }
-   .kpi-value { font-size: 24px; color: #344e41; font-weight: bold; }
-   .highlight-box { background-color: #e9f5db; padding: 15px; border-radius: 10px; border-left: 5px solid #2d6a4f; margin: 20px 0; font-size: 14px; }
+  .kpi-card { background-color: #f8f9fa; padding: 20px; border-radius: 15px; border-left: 6px solid #a3b18a; text-align: center; margin-bottom: 15px; }
+  .kpi-title { font-size: 11px; color: #6c757d; font-weight: bold; text-transform: uppercase; }
+  .kpi-value { font-size: 24px; color: #344e41; font-weight: bold; }
+  .highlight-box { background-color: #e9f5db; padding: 15px; border-radius: 10px; border-left: 5px solid #2d6a4f; margin: 20px 0; font-size: 14px; }
 </style>
 """, unsafe_allow_html=True)
 # --- VERİ YÜKLEME ---
@@ -68,14 +68,11 @@ if uploaded_file:
            daily_detail = pd.merge(daily_hourly, master_plan[['Saat', 'Onerilen_Güvenli_Kapasite']], on='Saat')
            daily_detail['Fark'] = daily_detail['Mevcut_Planlanan'] - daily_detail['Onerilen_Güvenli_Kapasite']
            daily_detail['Riskli_mi?'] = daily_detail.apply(lambda x: 'RİSK' if x['Fiili_Kullanilan'] > x['Onerilen_Güvenli_Kapasite'] else 'Güvenli', axis=1)
-           # KPI HESAPLARI (Günlük Ortalamalar)
            total_p_sum, total_k_sum = daily_detail['Mevcut_Planlanan'].sum(), daily_detail['Fiili_Kullanilan'].sum()
-           # Kritik Düzeltme: avg_o artık saatlik önerilenlerin toplamıdır (günlük toplam ihtiyacı temsil eder)
            avg_p = total_p_sum / num_days
            avg_k = total_k_sum / num_days
            avg_o = master_plan['Onerilen_Güvenli_Kapasite'].sum()
            avg_s = avg_p - avg_o
-           # Toplam önerilen sum hesaplaması (Tablo gösterimi için)
            total_o_sum = avg_o * num_days
            total_fark_sum = total_p_sum - total_o_sum
            risk_ratio = ((daily_detail['Riskli_mi?'] == 'RİSK').sum() / len(daily_detail) * 100) if len(daily_detail) > 0 else 0
@@ -111,7 +108,6 @@ if uploaded_file:
        if f_df.empty:
            st.warning("⚠️ Lütfen analiz için kriter seçiniz.")
        else:
-           # Planlamacı KPI'ları
            p1, p2, p3 = st.columns(3)
            p1.markdown(f'<div class="kpi-card"><div class="kpi-title">Net Tasarruf (Günlük Adet)</div><div class="kpi-value">{avg_s:.1f}</div></div>', unsafe_allow_html=True)
            p2.markdown(f'<div class="kpi-card"><div class="kpi-title">Net Tasarruf (Dönem Toplam)</div><div class="kpi-value">{total_fark_sum:.0f}</div></div>', unsafe_allow_html=True)
@@ -162,12 +158,10 @@ if uploaded_file:
                        if c_df.empty: continue
                        c_num_days = c_df['Tarih'].nunique()
                        c_d_h = c_df.groupby(['Tarih', 'Saat']).agg(p=('Gitti_Mi', 'count'), f=('Gitti_Mi', 'sum')).reset_index()
-                       # Mevcut Plan Ortalaması (Günlük)
                        c_avg_p = c_d_h['p'].sum() / c_num_days
                        for prof in test_profiles:
                            c_m_plan = c_d_h.groupby('Saat').agg(perc=('f', lambda x: np.percentile(x, prof))).reset_index()
                            c_m_plan['rec'] = np.ceil(c_m_plan['perc']).astype(int)
-                           # Önerilen Plan Ortalaması (Günlük) - Kritik Düzeltme: Sum of 24h
                            c_avg_o = c_m_plan['rec'].sum()
                            c_d_det = pd.merge(c_d_h, c_m_plan[['Saat', 'rec']], on='Saat')
                            c_r_count = (c_d_det['f'] > c_d_det['rec']).sum()
@@ -181,9 +175,11 @@ if uploaded_file:
                res_df = pd.DataFrame(global_exec_summary)
                def mark_best(group):
                    group['Optimum'] = False
-                   positive_savings=group[group['Net Tasarruf'] > 0]
-                   if not positive_savings.empty:
-                       best_idx = positive_savings.sort_values(by=['Risk Oranı (%)' , 'Net Tasarruf'], ascending= [True,False]).index[0]
+                   # GÜNCELLEME: Risk < 5 ve Net Tasarruf > 0 koşulu
+                   eligible = group[(group['Risk Oranı (%)'] < 5) & (group['Net Tasarruf'] > 0)]
+                   if not eligible.empty:
+                       # Bu koşulu sağlayanlar arasından en yüksek tasarruflu olanı seç
+                       best_idx = eligible.sort_values(by=['Net Tasarruf', 'Risk Oranı (%)'], ascending=[False, True]).index[0]
                        group.at[best_idx, 'Optimum'] = True
                    return group
                st.session_state.strateji_sonuc = res_df.groupby(['Analiz Seviyesi', 'Zaman Dilimi', 'Base', 'Filo', 'Pozisyon', 'Tür'], group_keys=False).apply(mark_best)
@@ -191,15 +187,18 @@ if uploaded_file:
            g_df = st.session_state.strateji_sonuc
            st.divider()
            st.subheader("🎯 Stratejik Filtreleme")
-           f1, f2, f3, f4, f5 = st.columns(5)
+           # GÜNCELLEME: Filtreleme kısmına Filo (Baz Filo) eklendi
+           f1, f2, f3, f4, f5, f6 = st.columns(6)
            with f1: filter_seviye = st.multiselect("Analiz Seviyesi", sorted(g_df['Analiz Seviyesi'].unique()))
            with f2: filter_base = st.multiselect("Base", sorted(g_df['Base'].unique()))
-           with f3: filter_pos = st.multiselect("Pozisyon", sorted(g_df['Pozisyon'].unique()))
-           with f4: filter_tur = st.multiselect("Nöbet Türü", sorted(g_df['Tür'].unique()))
-           with f5: only_optimum = st.checkbox("Sadece Optimum Önerileri Göster", value=False)
+           with f3: filter_filo = st.multiselect("Baz Filo", sorted(g_df['Filo'].unique()))
+           with f4: filter_pos = st.multiselect("Pozisyon", sorted(g_df['Pozisyon'].unique()))
+           with f5: filter_tur = st.multiselect("Nöbet Türü", sorted(g_df['Tür'].unique()))
+           with f6: only_optimum = st.checkbox("Sadece Optimum Önerileri Göster", value=False)
            filtered_df = g_df.copy()
            if filter_seviye: filtered_df = filtered_df[filtered_df['Analiz Seviyesi'].isin(filter_seviye)]
            if filter_base: filtered_df = filtered_df[filtered_df['Base'].isin(filter_base)]
+           if filter_filo: filtered_df = filtered_df[filtered_df['Filo'].isin(filter_filo)]
            if filter_pos: filtered_df = filtered_df[filtered_df['Pozisyon'].isin(filter_pos)]
            if filter_tur: filtered_df = filtered_df[filtered_df['Tür'].isin(filter_tur)]
            if only_optimum: filtered_df = filtered_df[filtered_df['Optimum'] == True]
@@ -212,7 +211,7 @@ if uploaded_file:
 <div class="highlight-box">
 <b>💡 Öneri Nasıl Hesaplanıyor?</b><br>
                1. Veriler saatlik bazda gruplanır ve seçilen <b>Güven Aralığına</b> göre istatistiksel üst sınır (Percentile) belirlenir.<br>
-               2. <b>Yeşil satırlar;</b> ilgili grup için operasyonel riskin en düşük ve tasarrufun en yüksek olduğu denge noktasını temsil eder.<br>
+               2. <b>Yeşil satırlar;</b> Risk oranı %5'ten küçük ve Net Tasarrufu 0'dan büyük olan en verimli noktayı temsil eder.<br>
                3. Tabloyu yukarıdaki kutulardan filtreleyerek "Sadece Sezonluk" veya "Sadece Kaptan" gibi spesifik analizler yapabilirsiniz.
 </div>
            """, unsafe_allow_html=True)
@@ -222,4 +221,3 @@ if uploaded_file:
            st.download_button(label="📥 Yönetici Raporunu İndir", data=output_g.getvalue(), file_name="Sirket_Strateji_Raporu.xlsx")
 else:
    st.info("Lütfen veri yükleyin.")
-
