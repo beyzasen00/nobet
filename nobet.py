@@ -64,16 +64,11 @@ if uploaded_file:
            master_plan['Onerilen_Güvenli_Kapasite'] = master_plan['Percentile_Kullanim'].apply(np.ceil).astype(int)
            daily_detail = pd.merge(daily_hourly, master_plan[['Saat', 'Onerilen_Güvenli_Kapasite']], on='Saat')
            daily_detail['Riskli_mi?'] = daily_detail.apply(lambda x: 'RİSK' if x['Fiili_Kullanilan'] > x['Onerilen_Güvenli_Kapasite'] else 'Güvenli', axis=1)
-           # Toplam Fiili (Operasyonel Detay Tablosunun Grand Totali - örn: 487)
            total_k_sum = daily_detail['Fiili_Kullanilan'].sum()
-           # --- KRİTİK RİSK ANALİZİ TABLOSU HESAPLAMA ---
            riskli_satirlar = daily_detail[daily_detail['Riskli_mi?'] == 'RİSK'].copy()
            riskli_satirlar['Fark'] = riskli_satirlar['Onerilen_Güvenli_Kapasite'] - riskli_satirlar['Fiili_Kullanilan']
-           # --- YÖNETİCİ YENİ RİSK TANIMI ---
-           # Farkların mutlak toplamı (örn: 3) / TÜM operasyonun fiili toplamı (örn: 487)
            toplam_risk_fark = abs(riskli_satirlar['Fark'].sum())
            yeni_risk_tanimi = (toplam_risk_fark / total_k_sum * 100) if total_k_sum > 0 else 0
-           # Diğer KPI'lar
            total_p_sum = daily_detail['Mevcut_Planlanan'].sum()
            avg_p, avg_k = total_p_sum / num_days, total_k_sum / num_days
            avg_o = master_plan['Onerilen_Güvenli_Kapasite'].sum()
@@ -88,8 +83,8 @@ if uploaded_file:
            k5.markdown(f'<div class="kpi-card" style="border-left-color: #bc4749;"><div class="kpi-title">Op. Risk Oranı</div><div class="kpi-value">%{risk_ratio:.1f}</div></div>', unsafe_allow_html=True)
            k6.markdown(f'<div class="kpi-card" style="border-left-color: #2a9d8f;"><div class="kpi-title">Yön. Risk Endeksi</div><div class="kpi-value">%{yeni_risk_tanimi:.1f}</div></div>', unsafe_allow_html=True)
            st.subheader("📋 1. Günlük & Saatlik Operasyonel Detay")
-           daily_detail['Fark'] = daily_detail['Mevcut_Planlanan'] - daily_detail['Onerilen_Güvenli_Kapasite']
-           summary_rows = pd.DataFrame({'Tarih': ['DÖNEM TOPLAMI', 'GÜNLÜK ORTALAMA (KPI)'], 'Saat': ['-', '-'], 'Mevcut_Planlanan': [total_p_sum, avg_p], 'Fiili_Kullanilan': [total_k_sum, avg_k], 'Onerilen_Güvenli_Kapasite': [avg_o * num_days, avg_o], 'Fark': [total_p_sum - (avg_o * num_days), avg_s], 'Riskli_mi?': ['-', '-']})
+           daily_detail['Fark_Mevcut_Onerilen'] = daily_detail['Mevcut_Planlanan'] - daily_detail['Onerilen_Güvenli_Kapasite']
+           summary_rows = pd.DataFrame({'Tarih': ['DÖNEM TOPLAMI', 'GÜNLÜK ORTALAMA (KPI)'], 'Saat': ['-', '-'], 'Mevcut_Planlanan': [total_p_sum, avg_p], 'Fiili_Kullanilan': [total_k_sum, avg_k], 'Onerilen_Güvenli_Kapasite': [avg_o * num_days, avg_o], 'Fark_Mevcut_Onerilen': [total_p_sum - (avg_o * num_days), avg_s], 'Riskli_mi?': ['-', '-']})
            final_daily = pd.concat([daily_detail, summary_rows], ignore_index=True)
            def style_risk(row):
                if row['Riskli_mi?'] == 'RİSK': return ['background-color: #ffcccc'] * len(row)
@@ -97,21 +92,10 @@ if uploaded_file:
                elif 'ORTALAMA' in str(row['Tarih']): return ['font-weight: bold; background-color: #e9f5db; color: #2d6a4f'] * len(row)
                return [''] * len(row)
            st.dataframe(final_daily.style.apply(style_risk, axis=1).format(precision=1), use_container_width=True)
-           # --- KRİTİK RİSK ANALİZİ TABLOSU (GRAND TOTAL EKLEME) ---
            with st.expander(f"⚠️ Kritik Risk Analizi: Toplam {len(riskli_satirlar)} Riskli Saat"):
                if not riskli_satirlar.empty:
-                   risk_total_row = pd.DataFrame({
-                       'Tarih': ['GRAND TOTAL'],
-                       'Saat': ['-'],
-                       'Mevcut_Planlanan': [riskli_satirlar['Mevcut_Planlanan'].sum()],
-                       'Fiili_Kullanilan': [riskli_satirlar['Fiili_Kullanilan'].sum()],
-                       'Onerilen_Güvenli_Kapasite': [riskli_satirlar['Onerilen_Güvenli_Kapasite'].sum()],
-                       'Fark': [riskli_satirlar['Fark'].sum()],
-                       'Riskli_mi?': ['-']
-                   })
-                   final_risk_table = pd.concat([riskli_satirlar, risk_total_row], ignore_index=True)
-                   st.dataframe(final_risk_table.style.apply(lambda x: ['font-weight: bold; background-color: #f0f2f6' if x['Tarih'] == 'GRAND TOTAL' else '' for _ in x], axis=1).format(precision=1), use_container_width=True)
-                   st.info(f"💡 Hesaplama: {toplam_risk_fark} (Kritik Fark Toplamı) / {total_k_sum} (Genel Fiili Toplam) = %{yeni_risk_tanimi:.2f}")
+                   risk_total_row = pd.DataFrame({'Tarih': ['GRAND TOTAL'],'Saat': ['-'],'Mevcut_Planlanan': [riskli_satirlar['Mevcut_Planlanan'].sum()],'Fiili_Kullanilan': [riskli_satirlar['Fiili_Kullanilan'].sum()],'Onerilen_Güvenli_Kapasite': [riskli_satirlar['Onerilen_Güvenli_Kapasite'].sum()],'Fark': [riskli_satirlar['Fark'].sum()], 'Riskli_mi?': ['-']})
+                   st.dataframe(pd.concat([riskli_satirlar, risk_total_row], ignore_index=True).style.apply(lambda x: ['font-weight: bold; background-color: #f0f2f6' if x['Tarih'] == 'GRAND TOTAL' else '' for _ in x], axis=1).format(precision=1), use_container_width=True)
                else:
                    st.success("Risk bulunamadı.")
            st.divider()
@@ -121,8 +105,7 @@ if uploaded_file:
            st.dataframe(master_plan[['Saat', 'Mevcut_Ort_Planlanan', 'Mevcut_Ort_Kullanilan', 'Onerilen_Güvenli_Kapasite']].style.format(precision=1), use_container_width=True)
    with tab_planlamaci:
        st.title("📅 Planlamacı Karar Destek Ekranı")
-       if f_df.empty:
-           st.warning("⚠️ Lütfen analiz için kriter seçiniz.")
+       if f_df.empty: st.warning("⚠️ Lütfen analiz için kriter seçiniz.")
        else:
            p1, p2, p3 = st.columns(3)
            p1.markdown(f'<div class="kpi-card"><div class="kpi-title">Net Tasarruf (Günlük Adet)</div><div class="kpi-value">{avg_s:.1f}</div></div>', unsafe_allow_html=True)
@@ -138,12 +121,15 @@ if uploaded_file:
            plan_master = master_plan.copy()
            plan_master['Saat Aralığı'] = plan_master['Saat'].apply(saat_grubu_ata)
            vardiya_ozet = plan_master.groupby('Saat Aralığı').agg(Toplam_Onerilen_Adet=('Onerilen_Güvenli_Kapasite', 'sum')).reset_index()
-           vardiya_final = pd.concat([vardiya_ozet, pd.DataFrame({'Saat Aralığı': ['GRAND TOTAL'], 'Toplam_Onerilen_Adet': [vardiya_ozet['Toplam_Onerilen_Adet'].sum()]})], ignore_index=True)
-           st.dataframe(vardiya_final.style.apply(lambda x: ['font-weight: bold; background-color: #f0f2f6' if x.name == len(vardiya_final)-1 else '' for _ in x], axis=1).format(precision=1), use_container_width=True, hide_index=True)
+           st.dataframe(pd.concat([vardiya_ozet, pd.DataFrame({'Saat Aralığı': ['GRAND TOTAL'], 'Toplam_Onerilen_Adet': [vardiya_ozet['Toplam_Onerilen_Adet'].sum()]})], ignore_index=True).style.apply(lambda x: ['font-weight: bold; background-color: #f0f2f6' if x.name == len(vardiya_ozet) else '' for _ in x], axis=1).format(precision=1), use_container_width=True, hide_index=True)
+           st.divider()
+           with st.expander("⏱️ 2. Saatlik Detay Plan Listesini Gör / Gizle"):
+               detay_liste = plan_master[['Saat', 'Onerilen_Güvenli_Kapasite']].copy()
+               detay_liste.columns = ['Saat', 'Önerilen Nöbetçi Sayısı']
+               st.dataframe(pd.concat([detay_liste, pd.DataFrame({'Saat': ['TOPLAM'], 'Önerilen Nöbetçi Sayısı': [detay_liste['Önerilen Nöbetçi Sayısı'].sum()]})], ignore_index=True).style.apply(lambda x: ['font-weight: bold; background-color: #f0f2f6' if x.name == len(detay_liste) else '' for _ in x], axis=1).format(precision=0), use_container_width=True, hide_index=True)
    with tab_strateji:
        st.title("🚀 Global Senaryo ve Strateji Motoru")
-       if 'strateji_sonuc' not in st.session_state:
-           st.session_state.strateji_sonuc = None
+       if 'strateji_sonuc' not in st.session_state: st.session_state.strateji_sonuc = None
        if st.button("Tüm Kombinasyonlar İçin Stratejik Analizi Başlat"):
            with st.spinner("Veriler işleniyor..."):
                global_exec_summary = []
@@ -167,19 +153,12 @@ if uploaded_file:
                            c_d_det = pd.merge(c_d_h, c_m_plan[['Saat', 'rec']], on='Saat')
                            c_r_count = (c_d_det['f'] > c_d_det['rec']).sum()
                            c_r_ratio = (c_r_count / len(c_d_det) * 100) if len(c_d_det) > 0 else 0
-                           global_exec_summary.append({
-                               'Analiz Seviyesi': label, 'Zaman Dilimi': z_adi, 'Base': row['Base'], 'Filo': row['Baz Filo'],
-                               'Pozisyon': row['Pozisyon'], 'Tür': row['Nöbet Türü'], 'Güven Aralığı (%)': prof,
-                               'Mevcut Plan (Ort)': round(c_avg_p, 1), 'Önerilen Nöbetçi Sayısı': round(float(c_avg_o), 1),
-                               'Net Tasarruf': round(c_avg_p - c_avg_o, 1), 'Risk Oranı (%)': round(c_r_ratio, 1)
-                           })
+                           global_exec_summary.append({'Analiz Seviyesi': label, 'Zaman Dilimi': z_adi, 'Base': row['Base'], 'Filo': row['Baz Filo'], 'Pozisyon': row['Pozisyon'], 'Tür': row['Nöbet Türü'], 'Güven Aralığı (%)': prof, 'Mevcut Plan (Ort)': round(c_avg_p, 1), 'Önerilen Nöbetçi Sayısı': round(float(c_avg_o), 1), 'Net Tasarruf': round(c_avg_p - c_avg_o, 1), 'Risk Oranı (%)': round(c_r_ratio, 1)})
                res_df = pd.DataFrame(global_exec_summary)
                def mark_best(group):
                    group['Optimum'] = False
                    eligible = group[(group['Risk Oranı (%)'] < 5) & (group['Net Tasarruf'] > 0)]
-                   if not eligible.empty:
-                       best_idx = eligible.sort_values(by=['Net Tasarruf', 'Risk Oranı (%)'], ascending=[False, True]).index[0]
-                       group.at[best_idx, 'Optimum'] = True
+                   if not eligible.empty: group.at[eligible.sort_values(by=['Net Tasarruf', 'Risk Oranı (%)'], ascending=[False, True]).index[0], 'Optimum'] = True
                    else:
                        first_saving = group[group['Net Tasarruf'] > 0].sort_values(by='Risk Oranı (%)', ascending=True)
                        if not first_saving.empty: group.at[first_saving.index[0], 'Optimum'] = True
@@ -203,8 +182,8 @@ if uploaded_file:
            if filter_tur: filtered_df = filtered_df[filtered_df['Tür'].isin(filter_tur)]
            if only_optimum: filtered_df = filtered_df[filtered_df['Optimum'] == True]
            st.dataframe(filtered_df.style.apply(lambda x: ['background-color: #d8f3dc; font-weight: bold; color: black'] * len(x) if x['Optimum'] else [''] * len(x), axis=1).format(precision=1), use_container_width=True, hide_index=True)
+           st.markdown("""<div class="highlight-box"><b>💡 Öneri Nasıl Hesaplanıyor?</b><br>1. Veriler saatlik bazda gruplanır ve seçilen <b>Güven Aralığımana</b> göre istatistiksel üst sınır belirlenir.<br>2. <b>Yeşil satırlar;</b> Risk oranı %5'ten küçük en yüksek tasarrufu; yoksa tasarruf sağlayan ilk en düşük riskli noktayı temsil eder.<br><b>Yaz1:</b> Haz-Eyl | <b>Yaz2:</b> Nis-May-Eki | <b>Kış:</b> Kas-Mar</div>""", unsafe_allow_html=True)
            output_g = BytesIO()
            with pd.ExcelWriter(output_g, engine='xlsxwriter') as writer: g_df.to_excel(writer, index=False, sheet_name='Strateji_Ozeti')
            st.download_button(label="📥 Yönetici Raporunu İndir", data=output_g.getvalue(), file_name="Sirket_Strateji_Raporu.xlsx")
-else:
-   st.info("Lütfen veri yükleyin.")
+else: st.info("Lütfen veri yükleyin.")
