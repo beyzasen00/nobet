@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from io import BytesIO
-import plotly.express as px  # Heatmap için eklendi
+import plotly.express as px  
+import plotly.graph_objects as row_go
 st.set_page_config(layout="wide", page_title="Nöbet Risk Analiz")
 # --- CSS ---
 st.markdown("""
@@ -18,20 +19,30 @@ uploaded_file = st.sidebar.file_uploader("Nöbet Verisi Yükle", type=["csv", "x
 if uploaded_file:
    df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
    df.columns = df.columns.str.strip()
-   # Veri Hazırlık
+   # --- Veri Hazırlık ---
    df['Base'] = df['Base'].astype(str).str.strip().str.upper()
    df['Baz Filo'] = df['Baz Filo'].astype(str).str.strip()
-   df['Nöbet Kodu'] = df['Nobet Kodu'].astype(str).str.strip() # --- EKLENDİ ---
-   df['Uçucu Sınıfı'] = df['Uçucu Sınıfı'].astype(str).str.strip() # --- EKLENDİ ---
+   df['Nöbet Kodu'] = df['Nobet Kodu'].astype(str).str.strip()
+   df['Uçucu Sınıfı'] = df['Uçucu Sınıfı'].astype(str).str.strip()
+   def nobet_parcala(kod):
+       kod = str(kod).upper()
+       if len(kod) < 5:
+           return "Bilinmiyor", "Bilinmiyor", "0", "Bilinmiyor", "Bilinmiyor"
+       lokasyon = "Home" if kod[0] == 'H' else "Airport" if kod[0] == 'A' else "Diğer"
+       tip = "ER" if kod[1] == 'E' else "Layover" if kod[1] == 'L' else "Gitgel" if kod[1] == 'G' else "Diğer"
+       gun = kod[2]
+       filo = "A330" if kod[3] == 'E' else "B777" if kod[3] == 'J' else "B738/A320" if kod[3] == 'M' else "A320" if kod[3] == 'Z' else "Diğer"
+       rol = "Amir/Memur" if kod[4] == 'S' else "A330 Arka Amir" if kod[4] == 'K' else "B777 Arka Amir" if kod[4] == 'V' else "Diğer"
+       return lokasyon, tip, gun, filo, rol
+   df[['N_Lokasyon', 'N_Tipi', 'N_Gun', 'N_Filo', 'N_Rol']] = df['Nöbet Kodu'].apply(lambda x: pd.Series(nobet_parcala(x)))
    df['Nobet Baslangic Tarihi'] = pd.to_datetime(df['Nobet Baslangic Tarihi'])
    df['Tarih'] = df['Nobet Baslangic Tarihi'].dt.date
    df['Saat'] = df['Nobet Baslangic Tarihi'].dt.hour
-   df['Yıl'] = df['Nobet Baslangic Tarihi'].dt.year # --- YIL KOLONU EKLENDİ ---
+   df['Yıl'] = df['Nobet Baslangic Tarihi'].dt.year
    ay_map = {'January': 'Ocak', 'February': 'Şubat', 'March': 'Mart', 'April': 'Nisan', 'May': 'Mayıs', 'June': 'Haziran',
              'July': 'Temmuz', 'August': 'Ağustos', 'September': 'Eylül', 'October': 'Ekim', 'November': 'Kasım', 'December': 'Aralık'}
    df['Ay_TR'] = df['Nobet Baslangic Tarihi'].dt.month_name().map(ay_map)
    df['Gitti_Mi'] = df['Nobetten Goreve Gitti mi?'].apply(lambda x: 1 if str(x).strip().upper() == 'Y' else 0)
-   # Sezon Tanımı
    sezon_map = {'Kış': ['Kasım','Aralık', 'Ocak', 'Şubat', 'Mart'], 'Yaz1': ['Haziran', 'Temmuz', 'Ağustos', 'Eylül'], 'Yaz2': ['Nisan', 'Mayıs', 'Ekim']}
    def get_sezon(ay):
        for s, aylar in sezon_map.items():
@@ -49,28 +60,25 @@ if uploaded_file:
    tab_ana, tab_planlamaci, tab_strateji = st.tabs(["🔍 Operasyonel Analiz", "📅 Planlamacı Ekranı", "🏆 Yönetici Strateji Özeti"])
    with tab_ana:
        st.sidebar.header("🎯 Analiz Filtreleri")
-       # --- FİLTRELER ---
        sel_yil = st.sidebar.multiselect("Yıl", sorted(df['Yıl'].unique(), reverse=True), default=sorted(df['Yıl'].unique(), reverse=True))
        sel_base = st.sidebar.selectbox("Base", sorted(df['Base'].unique()))
        sel_filo = st.sidebar.selectbox("Baz Filo", sorted(df['Baz Filo'].unique()))
-       # --- YENİ EKLENEN FİLTRELER ---
-       sel_nobet_kodu = st.sidebar.multiselect("Nöbet Kodu", sorted(df['Nöbet Kodu'].unique()), default=sorted(df['Nöbet Kodu'].unique()))
+       with st.sidebar.expander("🛡️ Nöbet Kodu Özellikleri", expanded=False):
+           sel_n_tipi = st.multiselect("Nöbet Tipi (E/L/G)", sorted(df['N_Tipi'].unique()), default=sorted(df['N_Tipi'].unique()))
+           sel_n_lokasyon = st.multiselect("Lokasyon (H/A)", sorted(df['N_Lokasyon'].unique()), default=sorted(df['N_Lokasyon'].unique()))
+           sel_n_filo_detay = st.multiselect("Nöbet Filo Karşılığı", sorted(df['N_Filo'].unique()), default=sorted(df['N_Filo'].unique()))
+           sel_n_rol = st.multiselect("Nöbet Rolü", sorted(df['N_Rol'].unique()), default=sorted(df['N_Rol'].unique()))
        sel_ucucu_sinifi_filtre = st.sidebar.multiselect("Uçucu Sınıfı", sorted(df['Uçucu Sınıfı'].unique()), default=sorted(df['Uçucu Sınıfı'].unique()))
-       # ----------------------------
        available_positions = sorted(df[df['Pozisyon'] != 'Diğer']['Pozisyon'].unique())
        sel_poz = st.sidebar.selectbox("Pozisyon", available_positions)
        sel_tur = st.sidebar.selectbox("Nöbet Türü", sorted(df['Nöbet Türü'].unique()))
        sel_aylar = st.sidebar.multiselect("Aylar", list(ay_map.values()), default=list(ay_map.values())[:3])
        risk_profile = st.sidebar.select_slider("Güven Aralığı (%)", options=[70,75,80, 85, 90, 95, 100], value=100)
-       # Maske Güncellendi (Yeni Filtreler ve Yıl Dahil Edildi)
-       mask = (df['Yıl'].isin(sel_yil)) & \
-              (df['Base'] == sel_base) & \
-              (df['Baz Filo'] == sel_filo) & \
-              (df['Nöbet Kodu'].isin(sel_nobet_kodu)) & \
-              (df['Uçucu Sınıfı'].isin(sel_ucucu_sinifi_filtre)) & \
-              (df['Pozisyon'] == sel_poz) & \
-              (df['Nöbet Türü'] == sel_tur) & \
-              (df['Ay_TR'].isin(sel_aylar))
+       mask = (df['Yıl'].isin(sel_yil)) & (df['Base'] == sel_base) & (df['Baz Filo'] == sel_filo) & \
+              (df['N_Tipi'].isin(sel_n_tipi)) & (df['N_Lokasyon'].isin(sel_n_lokasyon)) & \
+              (df['N_Filo'].isin(sel_n_filo_detay)) & (df['N_Rol'].isin(sel_n_rol)) & \
+              (df['Uçucu Sınıfı'].isin(sel_ucucu_sinifi_filtre)) & (df['Pozisyon'] == sel_poz) & \
+              (df['Nöbet Türü'] == sel_tur) & (df['Ay_TR'].isin(sel_aylar))
        f_df = df[mask].copy()
        if f_df.empty:
            st.warning("⚠️ Seçilen kriterlere uygun veri bulunamadı.")
@@ -83,20 +91,23 @@ if uploaded_file:
            daily_detail['Riskli_mi?'] = daily_detail.apply(lambda x: 'RİSK' if x['Fiili_Kullanilan'] > x['Onerilen_Güvenli_Kapasite'] else 'Güvenli', axis=1)
            total_k_sum = daily_detail['Fiili_Kullanilan'].sum()
            total_p_sum = daily_detail['Mevcut_Planlanan'].sum()
-           total_o_sum = daily_detail['Onerilen_Güvenli_Kapasite'].sum() # Önerilenin toplamı
+           total_o_sum = daily_detail['Onerilen_Güvenli_Kapasite'].sum()
            riskli_satirlar = daily_detail[daily_detail['Riskli_mi?'] == 'RİSK'].copy()
            riskli_satirlar['Fark'] = riskli_satirlar['Onerilen_Güvenli_Kapasite'] - riskli_satirlar['Fiili_Kullanilan']
            toplam_risk_fark = abs(riskli_satirlar['Fark'].sum())
            yeni_risk_tanimi = (toplam_risk_fark / total_k_sum * 100) if total_k_sum > 0 else 0
-           avg_p, avg_k = total_p_sum / num_days, total_k_sum / num_days
-           avg_o = master_plan['Onerilen_Güvenli_Kapasite'].sum()
+           # KPI TEMEL DEĞERLERİ
+           avg_p = total_p_sum / num_days
+           avg_k = total_k_sum / num_days
+           avg_o = total_o_sum / num_days
            avg_s = avg_p - avg_o
-           # --- YENİ ORANLAR HESAPLANDI ---
-           mevcut_doluluk = (total_k_sum / total_p_sum * 100) if total_p_sum > 0 else 0
-           onerilen_doluluk = (total_k_sum / total_o_sum * 100) if total_o_sum > 0 else 0
+           # KESİN DOĞRU FORMÜLASYONLAR:
+           # Mevcut Doluluk = Mevcut Ortalama Kullanım / Mevcut Ortalama Planlanan
+           mevcut_doluluk = (avg_k / avg_p * 100) if avg_p > 0 else 0
+           # Önerilen Doluluk = Mevcut Ortalama Kullanım / Önerilen Ortalama Kapasite
+           onerilen_doluluk = (avg_k / avg_o * 100) if avg_o > 0 else 0
            risk_ratio = ((daily_detail['Riskli_mi?'] == 'RİSK').sum() / len(daily_detail) * 100) if len(daily_detail) > 0 else 0
            st.title(f"📊 {sel_base} | {sel_filo} | {sel_poz} | {sel_tur} Analiz Paneli")
-           # KPI Satırı 1
            k1, k2, k3, k4, k5, k6 = st.columns(6)
            k1.markdown(f'<div class="kpi-card"><div class="kpi-title">Mevcut Ort. Plan</div><div class="kpi-value">{avg_p:.1f}</div></div>', unsafe_allow_html=True)
            k2.markdown(f'<div class="kpi-card"><div class="kpi-title">Mevcut Ort. Kullanım</div><div class="kpi-value">{avg_k:.1f}</div></div>', unsafe_allow_html=True)
@@ -104,10 +115,9 @@ if uploaded_file:
            k4.markdown(f'<div class="kpi-card"><div class="kpi-title">Net Tasarruf (Gün)</div><div class="kpi-value">{avg_s:.1f}</div></div>', unsafe_allow_html=True)
            k5.markdown(f'<div class="kpi-card" style="border-left-color: #bc4749;"><div class="kpi-title">Op. Risk Oranı</div><div class="kpi-value">%{risk_ratio:.1f}</div></div>', unsafe_allow_html=True)
            k6.markdown(f'<div class="kpi-card" style="border-left-color: #2a9d8f;"><div class="kpi-title">Yön. Risk Endeksi</div><div class="kpi-value">%{yeni_risk_tanimi:.1f}</div></div>', unsafe_allow_html=True)
-           # --- YENİ KPI SATIRI (VERİMLİLİK) ---
            m1, m2 = st.columns(2)
-           m1.markdown(f'<div class="kpi-card" style="border-left-color: #6d597a;"><div class="kpi-title">Mevcut Plan Doluluk Oranı (Kullanım / Mevcut)</div><div class="kpi-value">%{mevcut_doluluk:.1f}</div></div>', unsafe_allow_html=True)
-           m2.markdown(f'<div class="kpi-card" style="border-left-color: #f4a261;"><div class="kpi-title">Önerilen Plan Doluluk Oranı (Kullanım / Önerilen)</div><div class="kpi-value">%{onerilen_doluluk:.1f}</div></div>', unsafe_allow_html=True)
+           m1.markdown(f'<div class="kpi-card" style="border-left-color: #6d597a;"><div class="kpi-title">Mevcut Plan Doluluk Oranı</div><div class="kpi-value">%{mevcut_doluluk:.1f}</div></div>', unsafe_allow_html=True)
+           m2.markdown(f'<div class="kpi-card" style="border-left-color: #f4a261;"><div class="kpi-title">Önerilen Plan Doluluk Oranı</div><div class="kpi-value">%{onerilen_doluluk:.1f}</div></div>', unsafe_allow_html=True)
            st.subheader("📋 1. Günlük & Saatlik Operasyonel Detay")
            daily_detail['Fark_Mevcut_Onerilen'] = daily_detail['Mevcut_Planlanan'] - daily_detail['Onerilen_Güvenli_Kapasite']
            summary_rows = pd.DataFrame({'Tarih': ['DÖNEM TOPLAMI', 'GÜNLÜK ORTALAMA (KPI)'], 'Saat': ['-', '-'], 'Mevcut_Planlanan': [total_p_sum, avg_p], 'Fiili_Kullanilan': [total_k_sum, avg_k], 'Onerilen_Güvenli_Kapasite': [total_o_sum, avg_o], 'Fark_Mevcut_Onerilen': [total_p_sum - total_o_sum, avg_s], 'Riskli_mi?': ['-', '-']})
@@ -132,35 +142,14 @@ if uploaded_file:
            st.divider()
            st.subheader("🔥 3. Kullanım Yoğunluğu ve Dağılım Analizi (Heat Map)")
            heat_data = daily_detail.groupby(['Saat', 'Fiili_Kullanilan']).size().reset_index(name='Frekans')
-           fig = px.density_heatmap(
-               heat_data,
-               x='Saat',
-               y='Fiili_Kullanilan',
-               z='Frekans',
-               labels={'Saat': 'Nöbet Başlangıç Saati', 'Fiili_Kullanilan': 'Kullanılan Nöbetçi Sayısı', 'Frekans': 'Gün Sayısı'},
-               color_continuous_scale="YlOrRd",
-               text_auto=True
-           )
+           fig = px.density_heatmap(heat_data, x='Saat', y='Fiili_Kullanilan', z='Frekans', labels={'Saat': 'Nöbet Başlangıç Saati', 'Fiili_Kullanilan': 'Kullanılan Adet', 'Frekans': 'Gün Sayısı'}, color_continuous_scale="YlOrRd", text_auto=True)
            avg_line = daily_detail.groupby('Saat')['Fiili_Kullanilan'].mean().reset_index()
-           import plotly.graph_objects as row_go
-           fig.add_trace(row_go.Scatter(
-               x=avg_line['Saat'],
-               y=avg_line['Fiili_Kullanilan'],
-               name='Ortalama Kullanım',
-               line=dict(color='red', width=3, dash='dot')
-           ))
-           fig.update_layout(
-               xaxis=dict(tickmode='linear', tick0=0, dtick=1, range=[-0.5, 23.5]),
-               yaxis_title="Kullanılan Nöbetçi Adedi",
-               xaxis_title="Nöbet Başlangıç Saati",
-               height=500
-           )
+           fig.add_trace(row_go.Scatter(x=avg_line['Saat'], y=avg_line['Fiili_Kullanilan'], name='Ortalama Kullanım', line=dict(color='red', width=3, dash='dot')))
+           fig.update_layout(xaxis=dict(tickmode='linear', tick0=0, dtick=1, range=[-0.5, 23.5]), height=500)
            st.plotly_chart(fig, use_container_width=True)
-           st.info("💡 Grafik üzerindeki kesik kırmızı çizgi, ilgili saatteki **ortalama fiili kullanımı** temsil eder.")
    with tab_planlamaci:
        st.title("📅 Planlamacı Karar Destek Ekranı")
-       if f_df.empty: st.warning("⚠️ Lütfen analiz için kriter seçiniz.")
-       else:
+       if not f_df.empty:
            p1, p2, p3 = st.columns(3)
            p1.markdown(f'<div class="kpi-card"><div class="kpi-title">Net Tasarruf (Günlük Adet)</div><div class="kpi-value">{avg_s:.1f}</div></div>', unsafe_allow_html=True)
            p2.markdown(f'<div class="kpi-card"><div class="kpi-title">Net Tasarruf (Dönem Toplam)</div><div class="kpi-value">{total_p_sum - total_o_sum:.0f}</div></div>', unsafe_allow_html=True)
@@ -176,7 +165,6 @@ if uploaded_file:
            plan_master['Saat Aralığı'] = plan_master['Saat'].apply(saat_grubu_ata)
            vardiya_ozet = plan_master.groupby('Saat Aralığı').agg(Toplam_Onerilen_Adet=('Onerilen_Güvenli_Kapasite', 'sum')).reset_index()
            st.dataframe(pd.concat([vardiya_ozet, pd.DataFrame({'Saat Aralığı': ['GRAND TOTAL'], 'Toplam_Onerilen_Adet': [vardiya_ozet['Toplam_Onerilen_Adet'].sum()]})], ignore_index=True).style.apply(lambda x: ['font-weight: bold; background-color: #f0f2f6' if x.name == len(vardiya_ozet) else '' for _ in x], axis=1).format(precision=1), use_container_width=True, hide_index=True)
-           st.divider()
            with st.expander("⏱️ 2. Saatlik Detay Plan Listesini Gör / Gizle"):
                detay_liste = plan_master[['Saat', 'Onerilen_Güvenli_Kapasite']].copy()
                detay_liste.columns = ['Saat', 'Önerilen Nöbetçi Sayısı']
@@ -189,7 +177,6 @@ if uploaded_file:
                global_exec_summary = []
                test_profiles = [70,75,80, 85, 90, 95, 100]
                levels = [('Aylık', 'Ay_TR'), ('Sezonluk', 'Sezon'), ('Yıllık', 'Hepsi')]
-               # Global Analizde de Filtrelenmiş Yılları kullanmak için:
                df_global = df[df['Yıl'].isin(sel_yil)].copy()
                for label, col in levels:
                    combos = df_global.groupby(['Base', 'Baz Filo', 'Pozisyon', 'Nöbet Türü']).size().reset_index().drop(columns=0) if col == 'Hepsi' else df_global.groupby(['Base', 'Baz Filo', 'Pozisyon', 'Nöbet Türü', col]).size().reset_index().drop(columns=0)
@@ -249,7 +236,6 @@ if uploaded_file:
            if filter_tur: filtered_df = filtered_df[filtered_df['Tür'].isin(filter_tur)]
            if only_optimum: filtered_df = filtered_df[filtered_df['Optimum'] == True]
            st.dataframe(filtered_df.style.apply(lambda x: ['background-color: #d8f3dc; font-weight: bold; color: black'] * len(x) if x['Optimum'] else [''] * len(x), axis=1).format(precision=1), use_container_width=True, hide_index=True)
-           st.markdown("""<div class="highlight-box"><b>💡 Öneri Nasıl Hesaplanıyor?</b><br>1. Veriler saatlik bazda gruplanır ve seçilen <b>Güven Aralığıına</b> göre istatistiksel üst sınır belirlenir.<br>2. <b>Yeşil satırlar;</b> Risk oranı %5'ten küçük en yüksek tasarrufu temsil eder.</div>""", unsafe_allow_html=True)
            output_g = BytesIO()
            with pd.ExcelWriter(output_g, engine='xlsxwriter') as writer: g_df.to_excel(writer, index=False, sheet_name='Strateji_Ozeti')
            st.download_button(label="📥 Yönetici Raporunu İndir", data=output_g.getvalue(), file_name="Sirket_Strateji_Raporu.xlsx")
