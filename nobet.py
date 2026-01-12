@@ -155,26 +155,31 @@ if uploaded_file:
             
             st.dataframe(final_daily.style.apply(style_risk, axis=1).format(precision=1), use_container_width=True)
 
-            # --- YENİ EKLENEN BÖLÜM: 2 SAATLİK ANALİZ TABLOSU ---
+            # --- YENİ EKLENEN/DÜZELTİLEN BÖLÜM: 2 SAATLİK ANALİZ TABLOSU (GÜNLÜK TOPLAMLAR ÜZERİNDEN) ---
             st.subheader("⏱️ 1.1. İki Saatlik Periyot Analizi (Özet)")
             
-            # Periyot oluşturma fonksiyonu
             def get_2hr_label(saat):
                 start = (saat // 2) * 2
                 end = start + 1
                 return f"{start:02d}:00 - {end:02d}:59"
 
-            # Master plan üzerinden ortalamaları alarak 2 saatlik gruplama yapıyoruz
-            master_plan['Mevcut_Ort_Planlanan'] = master_plan['Saat'].map(daily_detail.groupby('Saat')['Mevcut_Planlanan'].mean())
-            master_plan['Mevcut_Ort_Kullanilan'] = master_plan['Saat'].map(daily_detail.groupby('Saat')['Fiili_Kullanilan'].mean())
-            master_plan['2_Saat_Araligi'] = master_plan['Saat'].apply(get_2hr_label)
+            # Adım 1: Mevcut daily_hourly verisine periyot bilgisini ekliyoruz
+            daily_hourly['2_Saat_Araligi'] = daily_hourly['Saat'].apply(get_2hr_label)
 
-            two_hour_analysis = master_plan.groupby('2_Saat_Araligi').agg({
-                'Mevcut_Ort_Planlanan': 'sum',
-                'Mevcut_Ort_Kullanilan': 'sum',
-                'Onerilen_Güvenli_Kapasite': 'sum'
+            # Adım 2: Her GÜN bazında o 2 saatteki TOPLAM plan ve kullanımı buluyoruz (Gerçek yük analizi)
+            daily_2hr_totals = daily_hourly.groupby(['Tarih', '2_Saat_Araligi']).agg({
+                'Mevcut_Planlanan': 'sum',
+                'Fiili_Kullanilan': 'sum'
             }).reset_index()
 
+            # Adım 3: Bu günlük seriler üzerinden ortalama ve risk (percentile) hesaplıyoruz
+            two_hour_analysis = daily_2hr_totals.groupby('2_Saat_Araligi').agg(
+                Mevcut_Planlanan_Ort=('Mevcut_Planlanan', 'mean'),
+                Fiili_Kullanilan_Ort=('Fiili_Kullanilan', 'mean'),
+                Onerilen_Güvenli_Kapasite=('Fiili_Kullanilan', lambda x: np.ceil(np.percentile(x, risk_profile)).astype(int))
+            ).reset_index()
+
+            # Kolon isimlerini düzenle ve farkları hesapla
             two_hour_analysis.columns = ['Saat Aralığı', 'Mevcut Planlanan', 'Fiili Kullanılan', 'Önerilen Güvenli Kapasite']
             two_hour_analysis['Fark (Mevcut-Önerilen)'] = two_hour_analysis['Mevcut Planlanan'] - two_hour_analysis['Önerilen Güvenli Kapasite']
             two_hour_analysis['Riskli mi?'] = two_hour_analysis.apply(lambda x: 'RİSK' if x['Fiili Kullanılan'] > x['Önerilen Güvenli Kapasite'] else 'Güvenli', axis=1)
@@ -191,6 +196,8 @@ if uploaded_file:
 
             st.divider()
             st.subheader("📋 2. Saatlik Stratejik Şablon (Referans)")
+            master_plan['Mevcut_Ort_Planlanan'] = master_plan['Saat'].map(daily_detail.groupby('Saat')['Mevcut_Planlanan'].mean())
+            master_plan['Mevcut_Ort_Kullanilan'] = master_plan['Saat'].map(daily_detail.groupby('Saat')['Fiili_Kullanilan'].mean())
             st.dataframe(master_plan[['Saat', 'Mevcut_Ort_Planlanan', 'Mevcut_Ort_Kullanilan', 'Onerilen_Güvenli_Kapasite']].style.format(precision=1), use_container_width=True)
 
             st.divider()
