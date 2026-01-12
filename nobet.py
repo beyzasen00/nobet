@@ -82,9 +82,21 @@ if uploaded_file:
             sel_n_filo_detay = st.multiselect("Nöbet Filo Karşılığı", sorted(df['N_Filo'].unique()), default=sorted(df['N_Filo'].unique()))
             sel_n_rol = st.multiselect("Nöbet Rolü", sorted(df['N_Rol'].unique()), default=sorted(df['N_Rol'].unique()))
 
-        sel_ucucu_sinifi_filtre = st.sidebar.multiselect("Uçucu Sınıfı", sorted(df['Uçucu Sınıfı'].unique()), default=sorted(df['Uçucu Sınıfı'].unique()))
+        # --- GÜNCELLENEN AKILLI FİLTRE BÖLÜMÜ ---
         available_positions = sorted(df[df['Pozisyon'] != 'Diğer']['Pozisyon'].unique())
         sel_poz = st.sidebar.selectbox("Pozisyon", available_positions)
+
+        # Seçilen pozisyona ait Uçucu Sınıflarını buluyoruz
+        relevant_classes = sorted(df[df['Pozisyon'] == sel_poz]['Uçucu Sınıfı'].unique())
+        
+        # Uçucu sınıfı filtresi artık sadece seçilen pozisyona ait sınıfları gösteriyor
+        sel_ucucu_sinifi_filtre = st.sidebar.multiselect(
+            f"Uçucu Sınıfı ({sel_poz} Alt Detayı)", 
+            options=relevant_classes, 
+            default=relevant_classes
+        )
+        # ---------------------------------------
+
         sel_tur = st.sidebar.selectbox("Nöbet Türü", sorted(df['Nöbet Türü'].unique()))
         sel_aylar = st.sidebar.multiselect("Aylar", list(ay_map.values()), default=list(ay_map.values())[:3])
         risk_profile = st.sidebar.select_slider("Güven Aralığı (%)", options=[70,75,80, 85, 90, 95, 100], value=100)
