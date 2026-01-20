@@ -96,7 +96,7 @@ if uploaded_file:
       k1, k2, k3, k4 = st.columns(4)
       with k1: st.markdown(f'<div class="kpi-card kpi-blue"><div class="kpi-label">Günlük Ort. Planlanan Nöbet</div><div class="kpi-val">{avg_planned_daily:.1f}</div></div>', unsafe_allow_html=True)
       with k2: st.markdown(f'<div class="kpi-card kpi-purple"><div class="kpi-label">Günlük Ort. Göreve Giden</div><div class="kpi-val">{avg_used_daily:.1f}</div></div>', unsafe_allow_html=True)
-      with k3: st.markdown(f'<div class="kpi-card kpi-green"><div class="kpi-label">Günlük Ort. AI Önerilen</div><div class="kpi-val">{avg_recommended_daily:.1f}</div></div>', unsafe_allow_html=True)
+      with k3: st.markdown(f'<div class="kpi-card kpi-green"><div class="kpi-label">Günlük Ort. Önerilen</div><div class="kpi-val">{avg_recommended_daily:.1f}</div></div>', unsafe_allow_html=True)
       with k4:
           savings = avg_planned_daily - avg_recommended_daily
           st.markdown(f'<div class="kpi-card kpi-orange"><div class="kpi-label">Günlük Potansiyel Tasarruf</div><div class="kpi-val">{max(0, savings):.1f} Kişi</div></div>', unsafe_allow_html=True)
@@ -137,3 +137,4 @@ if uploaded_file:
       st.warning("Göreve giden personel verisi bulunamadı.")
 else:
   st.info("Lütfen bir dosya yükleyin.")
+
