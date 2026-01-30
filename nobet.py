@@ -92,7 +92,7 @@ if uploaded_file:
        risk_profile = st.sidebar.select_slider("Güven Aralığı (%)", options=[70,75,80, 85, 90, 95, 100], value=100)
        
        st.sidebar.divider()
-       nobet_suresi = st.sidebar.slider("Nöbet Mesai Süresi (Saat)", 4, 12, 8)
+       nobet_suresi = st.sidebar.slider("Nöbet Mesai Süresi (Saat)", 2, 3, 4)
 
        mask = (df['Yıl'].isin(sel_yil)) & (df['Base'] == sel_base) & (df['Baz Filo'] == sel_filo) & \
               (df['N_Tipi'].isin(sel_n_tipi)) & (df['N_Lokasyon'].isin(sel_n_lokasyon)) & \
@@ -313,3 +313,4 @@ if uploaded_file:
            st.download_button(label="📥 Yönetici Raporunu İndir", data=output_g.getvalue(), file_name="Sirket_Strateji_Raporu.xlsx")
 else:
    st.info("Lütfen veri yükleyin.")
+
