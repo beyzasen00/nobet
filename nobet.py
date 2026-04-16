@@ -310,89 +310,96 @@ if uploaded_file:
             st.markdown(f'<table class="calendar-table"><thead><tr>{"".join([f"<th>{g}</th>" for g in gunler])}</tr></thead><tbody>{"".join(rows_html)}</tbody></table>', unsafe_allow_html=True)
 
         with tab_strateji:
-            st.title("🎯 Senaryo & Kapasite Simülatörü")
-            st.markdown("##### 🕑 Optimizasyon Saatlerini Seçin")
-            
-            col_all1, col_all2, _ = st.columns([1, 1, 6])
-            if col_all1.button("✅ Tümünü Seç", use_container_width=True):
-                st.session_state.opt_saatler_btn = set(range(24))
-                st.rerun()
-            
-            if col_all2.button("❌ Seçimleri Kaldır", use_container_width=True):
-                st.session_state.opt_saatler_btn = set()
-                st.rerun()
-            
-            st.write("") 
-            
-            for row_idx in range(3): 
-                cols = st.columns(8)
-                for col_idx in range(8):
-                    hour = row_idx * 8 + col_idx
-                    is_active = hour in st.session_state.opt_saatler_btn
-                    btn_type = "primary" if is_active else "secondary"
-                    btn_label = f"{hour:02d}:00"
-                    if cols[col_idx].button(btn_label, key=f"btn_h_{hour}", use_container_width=True, type=btn_type):
-                        if is_active: st.session_state.opt_saatler_btn.remove(hour)
-                        else: st.session_state.opt_saatler_btn.add(hour)
-                        st.rerun()
-
-            st.divider()
-            res1, res2, res3 = st.columns(3)
-            with res1:
-                aylik_toplam_tasarruf = (avg_p - avg_final) * 30
-                st.markdown(f"""
-                    <div style="background-color:#f8f9fa; padding:15px; border-radius:12px; text-align:center; border-left:6px solid #C2272D;">
-                        <div style="color:#C2272D; font-weight:bold; font-size:12px;">AYLIK TOPLAM TASARRUF</div>
-                        <div style="font-size:28px; font-weight:bold;">{int(aylik_toplam_tasarruf)} <span style="font-size:14px;">Nöbet</span></div>
-                    </div>
-                """, unsafe_allow_html=True)
-        
-            with res2:
-                risk_color = "#C2272D" if yeni_risk_tanimi > 5 else "#f4a261" if yeni_risk_tanimi > 2 else "#2a9d8f"
-                st.markdown(f"""
-                    <div style="background-color:#f8f9fa; padding:15px; border-radius:12px; text-align:center; border-left:6px solid {risk_color};">
-                        <div style="color:{risk_color}; font-weight:bold; font-size:12px;">YÖNETSEL RİSK ENDEKSİ</div>
-                        <div style="font-size:28px; font-weight:bold;">%{yeni_risk_tanimi:.2f}</div>
-                        <div style="font-size:11px; color:gray;">Toplam {int(daily_detail['Gercek_Fark'].sum())} kişi karşılanamadı.</div>
-                    </div>
-                """, unsafe_allow_html=True)
-        
-            with res3:
-                st.markdown(f"""
-                    <div style="background-color:#f8f9fa; padding:15px; border-radius:12px; text-align:center; border-left:6px solid #4A4A4A;">
-                        <div style="color:#4A4A4A; font-weight:bold; font-size:12px;">GÜNLÜK ORT. TASARRUF</div>
-                        <div style="font-size:28px; font-weight:bold;">{max(0, avg_p - avg_final):.1f} <span style="font-size:14px;">Kişi</span></div>
-                    </div>
-                """, unsafe_allow_html=True)
-        
-            st.subheader("📊 Kapasite ve İhtiyaç Kıyaslaması (Ortalama)")
-            hourly_summary = daily_detail.groupby('Saat').agg(
-                Mevcut_Ort_Plan=('Mevcut_Planlanan', 'mean'),
-                Fiili_Ort_Kullanim=('Fiili_Kullanilan', 'mean'),
-                Final_Kapasite_Ort=('Final_Kapasite', 'mean')
-            ).reset_index()
-            
-            fig_sim = row_go.Figure()
-            fig_sim.add_trace(row_go.Bar(x=hourly_summary['Saat'], y=hourly_summary['Mevcut_Ort_Plan'], name='Mevcut Planlanan', marker_color='dimgray', opacity=0.7))
-            fig_sim.add_trace(row_go.Bar(x=hourly_summary['Saat'], y=hourly_summary['Final_Kapasite_Ort'], name='Önerilen Kapasite', marker_color='lightsteelblue', offsetgroup=0))
-            fig_sim.add_trace(row_go.Scatter(x=hourly_summary['Saat'], y=hourly_summary['Fiili_Ort_Kullanim'], name='Fiili İhtiyaç (Ort)', line=dict(color='firebrick', width=3)))
-            fig_sim.update_layout(barmode='overlay', height=500, hovermode="x unified", template="plotly_white")
-            st.plotly_chart(fig_sim, use_container_width=True)
-
-            st.markdown("##### 📋 Seçili Saatlerin Kapasite Detayları")
-            selected_hours_table = hourly_summary[hourly_summary['Saat'].isin(opt_saatler)].copy()
-            if not selected_hours_table.empty:
-                st.dataframe(selected_hours_table.round(2), use_container_width=True, hide_index=True)
-                
-            st.divider()
-            st.subheader("🔢 Nöbetçi Kullanım Frekansları")
-            freq_hour = st.selectbox("İstatistik için Saat Seçin:", options=range(24), format_func=lambda x: f"{x:02d}:00", key="freq_hour_selector")
-            freq_data = daily_detail[daily_detail['Saat'] == freq_hour]['Fiili_Kullanilan'].value_counts().reset_index()
-            freq_data.columns = ['Kullanılan_Nöbetçi_Adedi', 'Gün_Sayısı']
-            freq_data = freq_data.sort_values('Kullanılan_Nöbetçi_Adedi')
-
-            fig_freq = row_go.Figure(row_go.Bar(x=freq_data['Kullanılan_Nöbetçi_Adedi'], y=freq_data['Gün_Sayısı'], text=freq_data['Gün_Sayısı'], marker_color='teal'))
-            fig_freq.update_layout(title=f"Saat {freq_hour:02d}:00 için Kullanım Dağılımı", height=350, template="plotly_white")
-            st.plotly_chart(fig_freq, use_container_width=True)
+           st.title("🎯 Senaryo & Kapasite Simülatörü")
+           st.markdown("##### 🕑 Optimizasyon Saatlerini Seçin")
+           col_all1, col_all2, _ = st.columns([1, 1, 6])
+           if col_all1.button("✅ Tümünü Seç", use_container_width=True):
+               st.session_state.opt_saatler_btn = set(range(24))
+               st.rerun()
+           if col_all2.button("❌ Seçimleri Kaldır", use_container_width=True):
+               st.session_state.opt_saatler_btn = set()
+               st.rerun()
+           st.write("")
+           for row_idx in range(3):
+               cols = st.columns(8)
+               for col_idx in range(8):
+                   hour = row_idx * 8 + col_idx
+                   is_active = hour in st.session_state.opt_saatler_btn
+                   btn_type = "primary" if is_active else "secondary"
+                   btn_label = f"{hour:02d}:00"
+                   if cols[col_idx].button(btn_label, key=f"btn_h_{hour}", use_container_width=True, type=btn_type):
+                       if is_active: st.session_state.opt_saatler_btn.remove(hour)
+                       else: st.session_state.opt_saatler_btn.add(hour)
+                       st.rerun()
+           st.divider()
+           res1, res2, res3 = st.columns(3)
+           with res1:
+               aylik_toplam_tasarruf = (avg_p - avg_final) * 30
+               st.markdown(f"""
+<div style="background-color:#f8f9fa; padding:15px; border-radius:12px; text-align:center; border-left:6px solid #C2272D;">
+<div style="color:#C2272D; font-weight:bold; font-size:12px;">AYLIK TOPLAM TASARRUF</div>
+<div style="font-size:28px; font-weight:bold;">{int(aylik_toplam_tasarruf)} <span style="font-size:14px;">Nöbet</span></div>
+</div>
+               """, unsafe_allow_html=True)
+           with res2:
+               risk_color = "#C2272D" if yeni_risk_tanimi > 5 else "#f4a261" if yeni_risk_tanimi > 2 else "#2a9d8f"
+               st.markdown(f"""
+<div style="background-color:#f8f9fa; padding:15px; border-radius:12px; text-align:center; border-left:6px solid {risk_color};">
+<div style="color:{risk_color}; font-weight:bold; font-size:12px;">YÖNETSEL RİSK ENDEKSİ</div>
+<div style="font-size:28px; font-weight:bold;">%{yeni_risk_tanimi:.2f}</div>
+<div style="font-size:11px; color:gray;">Toplam {int(daily_detail['Gercek_Fark'].sum())} kişi karşılanamadı.</div>
+</div>
+               """, unsafe_allow_html=True)
+           with res3:
+               st.markdown(f"""
+<div style="background-color:#f8f9fa; padding:15px; border-radius:12px; text-align:center; border-left:6px solid #4A4A4A;">
+<div style="color:#4A4A4A; font-weight:bold; font-size:12px;">GÜNLÜK ORT. TASARRUF</div>
+<div style="font-size:28px; font-weight:bold;">{max(0, avg_p - avg_final):.1f} <span style="font-size:14px;">Kişi</span></div>
+</div>
+               """, unsafe_allow_html=True)
+           st.subheader("📊 Kapasite ve İhtiyaç Kıyaslaması (Ortalama)")
+           hourly_summary = daily_detail.groupby('Saat').agg(
+               Mevcut_Ort_Plan=('Mevcut_Planlanan', 'mean'),
+               Fiili_Ort_Kullanim=('Fiili_Kullanilan', 'mean'),
+               Final_Kapasite_Ort=('Final_Kapasite', 'mean')
+           ).reset_index()
+           fig_sim = row_go.Figure()
+           fig_sim.add_trace(row_go.Bar(x=hourly_summary['Saat'], y=hourly_summary['Mevcut_Ort_Plan'], name='Mevcut Planlanan', marker_color='dimgray', opacity=0.7))
+           fig_sim.add_trace(row_go.Bar(x=hourly_summary['Saat'], y=hourly_summary['Final_Kapasite_Ort'], name='Önerilen Kapasite', marker_color='lightsteelblue', offsetgroup=0))
+           fig_sim.add_trace(row_go.Scatter(x=hourly_summary['Saat'], y=hourly_summary['Fiili_Ort_Kullanim'], name='Fiili İhtiyaç (Ort)', line=dict(color='firebrick', width=3)))
+           fig_sim.update_layout(barmode='overlay', height=500, hovermode="x unified", template="plotly_white")
+           st.plotly_chart(fig_sim, use_container_width=True)
+           st.markdown("##### 📋 Seçili Saatlerin Kapasite Detayları")
+           selected_hours_table = hourly_summary[hourly_summary['Saat'].isin(opt_saatler)].copy()
+           if not selected_hours_table.empty:
+               st.dataframe(selected_hours_table.round(2), use_container_width=True, hide_index=True)
+           # --- YENİ EKLENEN RİSK DAĞILIM TABLOSU ---
+           st.divider()
+           st.subheader("⚠️ Saatsel Risk Yoğunluk Tablosu")
+           st.info("Yönetimsel riskin hangi saat dilimlerinde kümelendiğini gösterir. (Gerçek Risk > 0 olan saatler)")
+           # Gerçek riskleri saat bazında özetleyelim
+           risk_summary = daily_detail[daily_detail['Gercek_Fark'] > 0].groupby('Saat').agg(
+               Toplam_Eksik_Kişi=('Gercek_Fark', 'sum'),
+               Riskli_Gün_Sayısı=('Tarih', 'nunique')
+               
+           ).reset_index()
+           if not risk_summary.empty:
+               risk_summary = risk_summary.sort_values('Toplam_Eksik_Kişi', ascending=False)
+               risk_summary['Saat'] = risk_summary['Saat'].apply(lambda x: f"{x:02d}:00")
+               st.dataframe(risk_summary, use_container_width=True, hide_index=True)
+           else:
+               st.success("✅ Seçili senaryoda herhangi bir saatsel risk bulunmamaktadır.")
+           # -----------------------------------------
+           st.divider()
+           st.subheader("🔢 Nöbetçi Kullanım Frekansları")
+           freq_hour = st.selectbox("İstatistik için Saat Seçin:", options=range(24), format_func=lambda x: f"{x:02d}:00", key="freq_hour_selector")
+           freq_data = daily_detail[daily_detail['Saat'] == freq_hour]['Fiili_Kullanilan'].value_counts().reset_index()
+           freq_data.columns = ['Kullanılan_Nöbetçi_Adedi', 'Gün_Sayısı']
+           freq_data = freq_data.sort_values('Kullanılan_Nöbetçi_Adedi')
+           fig_freq = row_go.Figure(row_go.Bar(x=freq_data['Kullanılan_Nöbetçi_Adedi'], y=freq_data['Gün_Sayısı'], text=freq_data['Gün_Sayısı'], marker_color='teal'))
+           fig_freq.update_layout(title=f"Saat {freq_hour:02d}:00 için Kullanım Dağılımı", height=350, template="plotly_white")
+           st.plotly_chart(fig_freq, use_container_width=True)
 
     st.sidebar.success("💡 Analiz başarıyla güncellendi.")
+
+ 
