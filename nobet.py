@@ -7,9 +7,9 @@ import plotly.graph_objects as row_go
 from datetime import timedelta
 # HATA COZUMU
 pd.set_option("styler.render.max_elements", 1000000)
-# SAYFA DUZENI
+# SAYFA DÜZENİ
 st.set_page_config(layout="wide", page_title="Nöbet Risk Analiz & Planlama")
-# SAYFA TASARIMI
+# ARAYÜZ TASARIMI
 st.markdown("""
 <style>
 .kpi-card { background-color: #f8f9fa; padding: 20px; border-radius: 15px; border-left: 6px solid #a3b18a; text-align: center; margin-bottom: 15px; }
@@ -23,43 +23,42 @@ th { background-color: #344e41; color: white; padding: 10px; border-radius: 5px;
 div.stButton > button { font-size: 12px; height: 35px; }
 </style>
 """, unsafe_allow_html=True)
-# AY
+# AY TANIMLAMA
 AY_MAP = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
           7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
-# VERI TANIMLARI&DONUSTURME
+
+# DOSYA OKUTMA & VERILERI TANIMLAMA
 @st.cache_data
 def veriyi_hazirla(file):
-    df = pd.read_csv(file) if file.name.endswith('.csv') else pd.read_excel(file)
+    df = pd.read_csv(file) if file.name.endswith('.csv') else pd.read_excel(file) 
     df.columns = df.columns.str.strip()
     df['Base'] = df['Base'].astype(str).str.strip().str.upper()
     df['Baz Filo'] = df['Baz Filo'].astype(str).str.strip()
     df['Nöbet Kodu'] = df['Nobet Kodu'].astype(str).str.strip()
     df['Uçucu Sınıfı'] = df['Uçucu Sınıfı'].astype(str).str.strip()
-    # Nobet Bitis Tarihi'ni datetime formatına çevirelim
-    df['Nobet Bitis Tarihi'] = pd.to_datetime(df['Nobet Bitis Tarihi'], errors='coerce')
-    
-    # EĞER KALKIŞ TARİHİ HATALIYSA: 
-    # Nöbet Bitiş Tarihi'ne 1 saat 30 dakika ekleyerek yeni Kalkış Tarihi oluşturuyoruz.
-    df['Kalkis Tarihi'] = df['Nobet Bitis Tarihi'] + pd.Timedelta(hours=1, minutes=30)
-    #NOBET KODU TANIMLARI
-    def nobet_parcala(kod):
+
+#NOBET KODU ÜZERİNDEN NÖBET ÖZELLİĞİ TANIMLAMA
+    def nobet_parcala(kod): 
         kod = str(kod).upper()
         if len(kod) < 5: return "Bilinmiyor", "Bilinmiyor", "0", "Bilinmiyor", "Bilinmiyor"
         lokasyon = "Home" if kod[0] == 'H' else "Airport" if kod[0] == 'A' else "Diğer"
         tip = "ER" if kod[1] == 'E' else "Layover" if kod[1] == 'L' else "Gitgel" if kod[1] == 'G' else "Diğer"
         return lokasyon, tip, kod[2], kod[3], kod[4]
     df[['N_Lokasyon', 'N_Tipi', 'N_Gun', 'N_Filo', 'N_Rol']] = df['Nöbet Kodu'].apply(lambda x: pd.Series(nobet_parcala(x)))
+
+    #VERI DUZENLEME&DONUSTURME
     df['Nobet Baslangic Tarihi'] = pd.to_datetime(df['Nobet Baslangic Tarihi'], errors='coerce')
     df['Kalkis Tarihi'] = pd.to_datetime(df['Kalkis Tarihi'], errors='coerce')
     df = df.dropna(subset=['Nobet Baslangic Tarihi'])
-    #TARIH TANIMI&DONUSTURMELERI
     df['Tarih'] = df['Nobet Baslangic Tarihi'].dt.date
     df['Saat'] = df['Nobet Baslangic Tarihi'].dt.hour
     df['Yıl'] = df['Nobet Baslangic Tarihi'].dt.year
     df['Ay_No'] = df['Nobet Baslangic Tarihi'].dt.month
     df['Ay_TR'] = df['Ay_No'].map(AY_MAP)
     df['Gitti_Mi'] = df['Nobetten Goreve Gitti mi?'].apply(lambda x: 1 if str(x).strip().upper() == 'Y' else 0)
-    #UCUSU SINIFI SINIFLANDIRMA
+
+    #UÇUCU SINIFI GRUPLANDIRMA
+
     def pozisyon_ata(sinif):
         val = str(sinif).strip().upper()
         if val.startswith('C'): return 'Kaptan'
@@ -69,7 +68,8 @@ def veriyi_hazirla(file):
         return 'Diğer'
     df['Pozisyon'] = df['Uçucu Sınıfı'].apply(pozisyon_ata)
     return df
-#HESAPLAMA
+
+    #HESAPLAMALAR
 @st.cache_data
 def hesaplamalari_yap(f_df, risk_profile, lead_time, nobet_suresi, opt_saatler):
     num_days = f_df['Tarih'].nunique()
@@ -77,7 +77,7 @@ def hesaplamalari_yap(f_df, risk_profile, lead_time, nobet_suresi, opt_saatler):
         Mevcut_Planlanan=('Gitti_Mi', 'count'), 
         Fiili_Kullanilan=('Gitti_Mi', 'sum')
     )
-    # GUVEN ARALIGI TANIMLAMA
+    # GUVEN ARALIĞI TANIMLAMA
     master_plan = daily_hourly.groupby(['Yıl', 'Ay_No', 'Saat'], as_index=False).agg(
         Percentile_Kullanim=('Fiili_Kullanilan', lambda x: np.percentile(x, risk_profile))
     )
@@ -92,19 +92,8 @@ def hesaplamalari_yap(f_df, risk_profile, lead_time, nobet_suresi, opt_saatler):
         lambda x: x['Onerilen_Güvenli_Kapasite'] if x['Saat'] in opt_saatler else x['Mevcut_Planlanan'], 
         axis=1
     )
-
     daily_detail['Timestamp'] = pd.to_datetime(daily_detail['Tarih'].astype(str) + ' ' + daily_detail['Saat'].astype(str) + ':00:00')
     daily_detail = daily_detail.sort_values('Timestamp').reset_index(drop=True)
-
-    #TRANSFER ALGORITMASI
-    #Önerilen adetlerin yetersiz kaldığı saatlerde nöbetlerin hangi saat başlangıçlı seferlerde kullanıldığına bakar, ilgili nöbet diliminden gidilen seferleri
-    #kalkış tarihine göre sıralar. Örneğin 02:00 başlangıçlı nöbet 06:00 ve 08:00 başlangıçlı seferlerde kullanılmış, ve 02:00 için 1 adet öneride bulunduysa sistem,
-    #06:00 başlangıçlı seferde o 1 adedin kullanıldığı değerlendirilir, 08:00 için ise önerilen adedin kullanılan adedin üstünde kalarak fazladan öneri bulununan
-    #ilgili saat diliminden transfer yapılır. Bu yapılırken nöbet süreleri ve lead time saatlerine göre değerlendirilir.
-    #Nöbet süresi dinamik olarak seçilir, örneğin 8 saat ise 02:00'de başlayan nöbetin 10:00'da sonlandığı değerlendirilir dolayısıyla 08:00 başlangıçlı seferde bu
-    #nöbet dilimi kullanılabilir. Bunun kontrolü için nöbet süresi filtresi eklenmiştir. Ek olarak lead_time süresi eklenmiştir. Bu ise seferin kalkış tarihinden ortalama
-    #4 saat öncesini ifade eder. Kişi nöbetten göreve en erken o saatte çağrılabilir. Görevi 08:00'de başlıyor ise en erken 04:00'da tebliğ yapılarak kişinin
-    #sefere yetişeceği varsayılmıştır.
     daily_detail['Kalan_Bos_Kapasite'] = (daily_detail['Final_Kapasite'] - daily_detail['Fiili_Kullanilan']).clip(lower=0)
     daily_detail['Transfer_Detay'] = ""; daily_detail['Cozulen_Adet'] = 0
     went_df = f_df[f_df['Gitti_Mi'] == 1].copy()
@@ -117,35 +106,24 @@ def hesaplamalari_yap(f_df, risk_profile, lead_time, nobet_suresi, opt_saatler):
         for _, sefer in fazla_seferler.iterrows():
             kalkis = sefer['Kalkis Tarihi']
             if pd.isna(kalkis): continue
-            # Eski kısıtlı mantık yerine:
-            cagri_saati = kalkis - timedelta(hours=lead_time) # Örn: 12:30 - 4 = 08:30
-
             aday_saatler = daily_detail[
-                # KURAL 1: Nöbet, çağrı saatinden önce başlamış olmalı
-                (daily_detail['Timestamp'] <= cagri_saati) & 
-                
-                # KURAL 2: Nöbetin bitişi, çağrı saatinden sonra olmalı 
-                # (Yani kişi o an hala görevde olmalı)
-                (daily_detail['Timestamp'] > cagri_saati - timedelta(hours=nobet_suresi)) &
-                
+                (daily_detail['Timestamp'] <= kalkis - timedelta(hours=lead_time)) &
+                (daily_detail['Timestamp'] > kalkis - timedelta(hours=nobet_suresi)) &
                 (daily_detail['Kalan_Bos_Kapasite'] > 0)
-            ].sort_values('Timestamp', ascending=True)
+            ].sort_values('Timestamp', ascending=False)
             if not aday_saatler.empty:
                 p_idx = aday_saatler.index[0]
                 daily_detail.at[p_idx, 'Kalan_Bos_Kapasite'] -= 1
                 cozulen += 1
                 v_saat = daily_detail.at[p_idx, 'Timestamp'].strftime('%H:00')
                 notlar.append(f"{kalkis.strftime('%H:%M')} seferi {v_saat} nöbetinden transfer edildi.")
-                # Yenisi (Hangi satırdan veri çektiğini ifşa eder):
-                n_baslama = sefer['Nobet Baslangic Tarihi']
-                notlar.append(f"Kalkış:{kalkis} (Kaynak Nöbet:{n_baslama}) -> Yeni Nöbet:{v_saat}")
         daily_detail.at[idx, 'Cozulen_Adet'] = cozulen
         if notlar: daily_detail.at[idx, 'Transfer_Detay'] = " | ".join(notlar)
-    # RISK TANIMI
+    # MERKEZİ RİSK TANIMI: Tüm sekmelerde bu kolonlar kullanılır.
     daily_detail['Riskli_mi?'] = daily_detail.apply(lambda r: 'Güvenli' if (r['Fiili_Kullanilan'] - r['Final_Kapasite']) <= 0 else ('TRANSFER İLE ÇÖZÜLDÜ' if r['Cozulen_Adet'] >= (r['Fiili_Kullanilan'] - r['Final_Kapasite']) else 'GERÇEK RİSK'), axis=1)
     daily_detail['Gercek_Fark'] = daily_detail.apply(lambda x: (x['Fiili_Kullanilan'] - x['Final_Kapasite'] - x['Cozulen_Adet']) if x['Riskli_mi?'] == 'GERÇEK RİSK' else 0, axis=1)
     return daily_detail, master_plan, num_days
-# SIDEBAR FILTRELERI
+# --- ANA AKIŞ ---
 uploaded_file = st.sidebar.file_uploader("Nöbet Verisi Yükle", type=["csv", "xlsx"])
 if uploaded_file:
     df = veriyi_hazirla(uploaded_file)
@@ -187,12 +165,10 @@ if uploaded_file:
         avg_p = daily_detail['Mevcut_Planlanan'].sum() / num_days
         avg_k = total_k_sum / num_days
         avg_final = daily_detail['Final_Kapasite'].sum() / num_days
-        # Risk Hesaplamaları (Saatlik ve Yöneticinin Kişi Bazlı Mantığı)
+        # Risk Hesaplamaları (Senin Saatlik ve Yöneticinin Kişi Bazlı Mantığı)
         risk_adet_sonrasi = (daily_detail['Riskli_mi?'] == 'GERÇEK RİSK').sum()
         risk_orani_sonrasi = (risk_adet_sonrasi / len(daily_detail) * 100) if len(daily_detail) > 0 else 0
         yeni_risk_tanimi = (daily_detail['Gercek_Fark'].sum() / total_k_sum * 100) if total_k_sum > 0 else 0
-
-        #KPI KARTLARI TASARIMI
         with tab_ana:
             st.title(f"📊 {sel_base} | {sel_filo} | {sel_poz} Analizi")
             k1, k2, k3, k4, k5, k6 = st.columns(6)
@@ -203,8 +179,6 @@ if uploaded_file:
             k5.markdown(f'<div class="kpi-card" style="border-left-color: #bc4749;"><div class="kpi-title">Efektif Saatlik Risk</div><div class="kpi-value">%{risk_orani_sonrasi:.1f}</div></div>', unsafe_allow_html=True)
             k6.markdown(f'<div class="kpi-card" style="border-left-color: #2a9d8f;"><div class="kpi-title">Yön. Risk Endeksi</div><div class="kpi-value">%{yeni_risk_tanimi:.1f}</div></div>', unsafe_allow_html=True)
             st.dataframe(daily_detail[['Tarih', 'Saat', 'Mevcut_Planlanan', 'Fiili_Kullanilan', 'Final_Kapasite', 'Riskli_mi?', 'Gercek_Fark', 'Transfer_Detay']], use_container_width=True, hide_index=True)
-        
-        #OPERASYONEL ANALIZ SAYFASI
         with tab_grafik:
             st.title("📈 Stratejik Operasyon Paneli")
             c1, c2, c3 = st.columns(3)
@@ -345,10 +319,6 @@ if uploaded_file:
                         cols_html.append('<td class="calendar-td" style="background-color:#f9f9f9;"></td>')
                 rows_html.append(f"<tr>{''.join(cols_html)}</tr>")
             st.markdown(f'<table class="calendar-table"><thead><tr>{"".join([f"<th>{g}</th>" for g in gunler])}</tr></thead><tbody>{"".join(rows_html)}</tbody></table>', unsafe_allow_html=True)
-        
-        #YONETICI STRATEJI OZETI SAYFASI
-        
-        
         with tab_strateji:
             st.title("🎯 Senaryo & Kapasite Simülatörü")
             st.markdown("##### 🕑 Optimizasyon Saatlerini Seçin")
@@ -411,7 +381,7 @@ if uploaded_file:
                 Final_Kapasite_Ort=('Final_Kapasite', 'mean'),
                 Efektif_Risk_Ort=('Gercek_Fark', 'mean')
             ).reset_index()
-            # --- YENİ GRAFİK KODUN BURAYA GELİYOR ---
+            # --- YENİ GRAFİK KODU BURAYA GELİYOR ---
             fig_sim = row_go.Figure()
             # Mevcut Planlanan (Arka Plan - Koyu Renk)
             fig_sim.add_trace(row_go.Bar(
