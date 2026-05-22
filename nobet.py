@@ -46,20 +46,20 @@ def veriyi_hazirla(file):
        
  
         # Kalkis Tarihi yoksa Nobet Bitis Tarihi üzerinden üret
-        df["Nobet Bitis"] = pd.to_datetime(
+    df["Nobet Bitis"] = pd.to_datetime(
             df["Nobet Bitis"],
             errors="coerce",
             dayfirst=True
         )
  
         if "Kalkis Tarihi" in df.columns:
-            df["Kalkis Tarihi"] = pd.to_datetime(
+    df["Kalkis Tarihi"] = pd.to_datetime(
                 df["Kalkis Tarihi"],
                 errors="coerce",
                 dayfirst=True
             )
  
-            df["Kalkis Tarihi"] = df["Kalkis Tarihi"].fillna(
+    df["Kalkis Tarihi"] = df["Kalkis Tarihi"].fillna(
                 df["Nobet Bitis"] + pd.Timedelta(hours=1, minutes=30)
             )
  
