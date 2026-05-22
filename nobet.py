@@ -35,17 +35,36 @@ def veriyi_hazirla(file):
     df['Baz Filo'] = df['Baz Filo'].astype(str).str.strip()
     df['Nöbet Kodu'] = df['Nobet Kodu'].astype(str).str.strip()
     df['Uçucu Sınıfı'] = df['Uçucu Sınıfı'].astype(str).str.strip()
+          
     # Nobet Bitis Tarihi'ni datetime formatına çevirelim
-    df['Nobet Bitis Tarihi'] = pd.to_datetime(df['Nobet Bitis Tarihi'], errors='coerce')
-    
-    # EĞER KALKIŞ TARİHİ HATALIYSA: 
-    # Nöbet Bitiş Tarihi'ne 1 saat 30 dakika ekleyerek yeni Kalkış Tarihi oluşturuyoruz.
-    if "Kalkis Tarihi" in df.columns:
+    df["Nobet Baslangic"] = pd.to_datetime(
+            df["Nobet Baslangic"],
+            errors="coerce"
+        )
+       
+        # Kalkis Tarihi varsa datetime yap
+       
+ 
+        # Kalkis Tarihi yoksa Nobet Bitis Tarihi üzerinden üret
+        df["Nobet Bitis"] = pd.to_datetime(
+            df["Nobet Bitis"],
+            errors="coerce",
+            dayfirst=True
+        )
+ 
+        if "Kalkis Tarihi" in df.columns:
             df["Kalkis Tarihi"] = pd.to_datetime(
                 df["Kalkis Tarihi"],
                 errors="coerce",
                 dayfirst=True
             )
+ 
+            df["Kalkis Tarihi"] = df["Kalkis Tarihi"].fillna(
+                df["Nobet Bitis"] + pd.Timedelta(hours=1, minutes=30)
+            )
+ 
+        else:
+            df["Kalkis Tarihi"] = df["Nobet Bitis"] + pd.Timedelta(hours=1,minutes=30)
 
     #NOBET KODU TANIMLARI
     def nobet_parcala(kod):
