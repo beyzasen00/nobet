@@ -52,7 +52,7 @@ def veriyi_hazirla(file):
             dayfirst=True
         )
  
-    if "Kalkis Tarihi" in df.columns:
+              if "Kalkis Tarihi" in df.columns:
     df["Kalkis Tarihi"] = pd.to_datetime(
                 df["Kalkis Tarihi"],
                 errors="coerce",
@@ -63,7 +63,7 @@ def veriyi_hazirla(file):
                 df["Nobet Bitis"] + pd.Timedelta(hours=1, minutes=30)
             )
  
-    else:
+              else:
             df["Kalkis Tarihi"] = df["Nobet Bitis"] + pd.Timedelta(hours=1,minutes=30)
 
     #NOBET KODU TANIMLARI
