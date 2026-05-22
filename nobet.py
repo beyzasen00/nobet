@@ -56,7 +56,7 @@ def veriyi_hazirla(file):
               dayfirst=True
             )
  
-    df["Kalkis Tarihi"] = df["Kalkis Tarihi"].fillna(
+            df["Kalkis Tarihi"] = df["Kalkis Tarihi"].fillna(
                 df["Nobet Bitis"] + pd.Timedelta(hours=1, minutes=30)
             )
  
