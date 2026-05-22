@@ -37,14 +37,14 @@ def veriyi_hazirla(file):
     df['Uçucu Sınıfı'] = df['Uçucu Sınıfı'].astype(str).str.strip()
           
     # Nobet Bitis Tarihi'ni datetime formatına çevirelim
-    df["Nobet Baslangic"] = pd.to_datetime(
-        df["Nobet Baslangic"],
+    df["Nobet Baslangic Tarihi"] = pd.to_datetime(
+        df["Nobet Baslangic Tarihi"],
         errors="coerce"
         )      
         # Kalkis Tarihi varsa datetime yap
         # Kalkis Tarihi yoksa Nobet Bitis Tarihi üzerinden üret
-    df["Nobet Bitis"] = pd.to_datetime(
-        df["Nobet Bitis"],
+    df["Nobet Bitis Tarihi"] = pd.to_datetime(
+        df["Nobet Bitis Tarihi"],
         errors="coerce",
         dayfirst=True
         )
@@ -57,11 +57,11 @@ def veriyi_hazirla(file):
         )
  
         df["Kalkis Tarihi"] = df["Kalkis Tarihi"].fillna(
-            df["Nobet Bitis"] + pd.Timedelta(hours=1, minutes=30)
+            df["Nobet Bitis Tarihi"] + pd.Timedelta(hours=1, minutes=30)
         )
  
     else:
-        df["Kalkis Tarihi"] = df["Nobet Bitis"] + pd.Timedelta(hours=1,minutes=30)
+        df["Kalkis Tarihi"] = df["Nobet Bitis Tarihi"] + pd.Timedelta(hours=1,minutes=30)
 
     #NOBET KODU TANIMLARI
     def nobet_parcala(kod):
