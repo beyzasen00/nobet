@@ -132,7 +132,7 @@ def hesaplamalari_yap(f_df, risk_profile, lead_time, nobet_suresi, opt_saatler):
     went_df = f_df[f_df['Gitti_Mi'] == 1].copy()
     for idx, row in daily_detail[daily_detail['Fiili_Kullanilan'] > daily_detail['Final_Kapasite']].iterrows():
         tarih_saat = row['Timestamp']
-        bu_saatteki_seferler = went_df[(went_df['Nobet Baslangic Tarihi'] == tarih_saat)].sort_values('Kalkis Tarihi', ascending=False)
+        bu_saatteki_seferler=went_df[(went_df["Tarih"]==row["Tarih"]) & (went_df["Saat"]==row["Saat"])].sort_values("Kalkis Tarihi",ascending=False)
         limit = int(row['Final_Kapasite'])
         fazla_seferler = bu_saatteki_seferler.iloc[0 : (int(row['Fiili_Kullanilan']) - limit)]
         cozulen = 0; notlar = []
