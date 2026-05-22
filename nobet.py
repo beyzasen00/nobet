@@ -49,19 +49,19 @@ def veriyi_hazirla(file):
             dayfirst=True
         )
  
- if "Kalkis Tarihi" in df.columns:
-    df["Kalkis Tarihi"] = pd.to_datetime(
-                df["Kalkis Tarihi"],
-                errors="coerce",
-                dayfirst=True
+    if "Kalkis Tarihi" in df.columns:
+              df["Kalkis Tarihi"] = pd.to_datetime(
+              df["Kalkis Tarihi"],
+              errors="coerce",
+              dayfirst=True
             )
  
     df["Kalkis Tarihi"] = df["Kalkis Tarihi"].fillna(
                 df["Nobet Bitis"] + pd.Timedelta(hours=1, minutes=30)
             )
  
- else:
-            df["Kalkis Tarihi"] = df["Nobet Bitis"] + pd.Timedelta(hours=1,minutes=30)
+   else:
+             df["Kalkis Tarihi"] = df["Nobet Bitis"] + pd.Timedelta(hours=1,minutes=30)
 
     #NOBET KODU TANIMLARI
     def nobet_parcala(kod):
