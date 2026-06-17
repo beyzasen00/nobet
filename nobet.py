@@ -55,6 +55,7 @@ def veriyi_hazirla(file):
             errors="coerce",
             dayfirst=True
         )
+        df.loc[df["Kalkis Tarihi"].notna() &(df["Kalkis Tarihi"].dt.year < 2000),"Kalkis Tarihi"]=pd.NaT
  
         df["Kalkis Tarihi"] = df["Kalkis Tarihi"].fillna(
             df["Nobet Bitis Tarihi"] + pd.Timedelta(hours=1, minutes=30)
